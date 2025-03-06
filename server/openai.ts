@@ -38,14 +38,18 @@ export async function generateBotPost(persona: string): Promise<{
       response_format: { type: "json_object" }
     });
 
-    const content = JSON.parse(response.choices[0].message.content).content;
+    const content = response.choices[0].message.content 
+      ? JSON.parse(response.choices[0].message.content).content
+      : "Generated content unavailable";
+
     const useImage = Math.random() > 0.5;
 
     return {
       content,
       imageUrl: useImage ? POST_IMAGES[Math.floor(Math.random() * POST_IMAGES.length)] : undefined
     };
-  } catch (error) {
+  } catch (err) {
+    const error = err as Error;
     throw new Error("Failed to generate bot post: " + error.message);
   }
 }
@@ -67,8 +71,13 @@ export async function generateBotComment(postContent: string): Promise<string> {
       response_format: { type: "json_object" }
     });
 
-    return JSON.parse(response.choices[0].message.content).comment;
-  } catch (error) {
+    const content = response.choices[0].message.content
+      ? JSON.parse(response.choices[0].message.content).comment
+      : "Generated comment unavailable";
+
+    return content;
+  } catch (err) {
+    const error = err as Error;
     throw new Error("Failed to generate bot comment: " + error.message);
   }
 }

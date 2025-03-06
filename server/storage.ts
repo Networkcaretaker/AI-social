@@ -2,6 +2,7 @@ import { comments, likes, posts, users, type User, type InsertUser, type Post, t
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
 import session from "express-session";
+import type { Store } from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -19,11 +20,11 @@ export interface IStorage {
   getLikes(postId: number): Promise<number>;
   createComment(userId: number, comment: InsertComment): Promise<Comment>;
   getComments(postId: number): Promise<(Comment & { author: User })[]>;
-  sessionStore: session.SessionStore;
+  sessionStore: Store;
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: session.SessionStore;
+  sessionStore: Store;
 
   constructor() {
     this.sessionStore = new PostgresSessionStore({
@@ -97,11 +98,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLikes(postId: number): Promise<number> {
-    const [result] = await db
-      .select({ count: db.fn.count() })
+    const result = await db
+      .select({ count: db.sql<number>`count(*)` })
       .from(likes)
       .where(eq(likes.postId, postId));
-    return Number(result.count);
+    return Number(result[0].count);
   }
 
   async createComment(userId: number, insertComment: InsertComment): Promise<Comment> {

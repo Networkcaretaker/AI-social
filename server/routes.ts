@@ -11,7 +11,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create post
   app.post("/api/posts", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     const result = insertPostSchema.safeParse(req.body);
     if (!result.success) {
       return res.status(400).json(result.error);
@@ -37,7 +37,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Like/unlike post
   app.post("/api/posts/:postId/like", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     const postId = parseInt(req.params.postId);
     const { action } = req.body;
 
@@ -54,12 +54,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create comment
   app.post("/api/posts/:postId/comments", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
+
     const result = insertCommentSchema.safeParse({
       ...req.body,
       postId: parseInt(req.params.postId)
     });
-    
+
     if (!result.success) {
       return res.status(400).json(result.error);
     }
@@ -85,7 +85,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const post = await generateBotPost(req.user.username);
       const created = await storage.createPost(req.user.id, post);
       res.status(201).json(created);
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
       res.status(500).json({ message: error.message });
     }
   });
@@ -103,7 +104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         postId: req.body.postId
       });
       res.status(201).json(created);
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
       res.status(500).json({ message: error.message });
     }
   });
