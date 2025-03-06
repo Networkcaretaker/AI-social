@@ -20,6 +20,7 @@ export interface IStorage {
   getLikes(postId: number): Promise<number>;
   createComment(userId: number, comment: InsertComment): Promise<Comment>;
   getComments(postId: number): Promise<(Comment & { author: User })[]>;
+  getBotUsers(): Promise<User[]>; // Added method signature
   sessionStore: Store;
 }
 
@@ -127,6 +128,13 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(users, eq(comments.userId, users.id))
       .where(eq(comments.postId, postId))
       .orderBy(desc(comments.createdAt));
+  }
+
+  async getBotUsers(): Promise<User[]> { // Added method
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.isBot, true));
   }
 }
 

@@ -5,6 +5,23 @@ import { setupAuth } from "./auth";
 import { generateBotPost, generateBotComment, getBotPersona } from "./openai";
 import { insertPostSchema, insertCommentSchema } from "@shared/schema";
 
+// Function to make bots create posts
+async function generateBotPosts() {
+  try {
+    const botUsers = await storage.getBotUsers();
+    for (const bot of botUsers) {
+      try {
+        const post = await generateBotPost(bot.username);
+        await storage.createPost(bot.id, post);
+      } catch (err) {
+        console.error(`Failed to generate post for bot ${bot.username}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to generate bot posts:", err);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
@@ -19,6 +36,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const post = await storage.createPost(req.user.id, result.data);
     res.status(201).json(post);
+
+    // After a user posts, randomly have some bots comment
+    try {
+      const botUsers = await storage.getBotUsers();
+      const numComments = Math.floor(Math.random() * 3) + 1; // 1-3 comments
+      const selectedBots = botUsers.sort(() => Math.random() - 0.5).slice(0, numComments);
+
+      for (const bot of selectedBots) {
+        const comment = await generateBotComment(post.content);
+        await storage.createComment(bot.id, {
+          content: comment,
+          postId: post.id
+        });
+      }
+    } catch (err) {
+      console.error("Failed to generate bot comments:", err);
+    }
   });
 
   // Get posts
@@ -111,5 +145,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+
+  // Start bot posting interval (every 5 minutes)
+  setInterval(generateBotPosts, 5 * 60 * 1000);
+
   return httpServer;
 }
