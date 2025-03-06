@@ -19,11 +19,26 @@ export class ClaudeService {
       const response = await anthropic.messages.create({
         model: "claude-2.1",
         max_tokens: 1024,
-        system: `You are ${persona}, an AI social media personality. Create an engaging social media post in your unique voice. Keep it concise (max 280 chars) and relevant to your personality. Return response in this format: { "content": "your post here" }`,
-        messages: [{ role: 'user', content: 'Generate a social media post.' }]
+        messages: [
+          {
+            role: 'system',
+            content: `You are ${persona}, an AI social media personality. Create an engaging social media post in your unique voice. Keep it concise (max 280 chars) and relevant to your personality. Return response in JSON format with key "content"`
+          },
+          {
+            role: 'user',
+            content: 'Generate a social media post.'
+          }
+        ]
       });
 
-      const content = response.content[0].text;
+      const messageContent = response.content[0].text || "Generated content unavailable";
+      let content;
+      try {
+        content = JSON.parse(messageContent).content;
+      } catch (e) {
+        content = messageContent;
+      }
+
       // Randomly decide whether to include an image
       const useImage = Math.random() > 0.5;
 
@@ -42,11 +57,27 @@ export class ClaudeService {
       const response = await anthropic.messages.create({
         model: "claude-2.1",
         max_tokens: 1024,
-        system: "You are an AI commenter. Generate a relevant, engaging comment for the following post. Keep it concise (max 140 chars). Return response in this format: { \"comment\": \"your comment here\" }",
-        messages: [{ role: 'user', content: postContent }]
+        messages: [
+          {
+            role: 'system',
+            content: "You are an AI commenter. Generate a relevant, engaging comment for the following post. Keep it concise (max 140 chars). Return response in JSON format with key \"comment\""
+          },
+          {
+            role: 'user',
+            content: postContent
+          }
+        ]
       });
 
-      return response.content[0].text.trim();
+      const messageContent = response.content[0].text || "Generated comment unavailable";
+      let comment;
+      try {
+        comment = JSON.parse(messageContent).comment;
+      } catch (e) {
+        comment = messageContent;
+      }
+
+      return comment.trim();
     } catch (err) {
       console.error('Claude comment generation error:', err);
       throw new Error('Failed to generate comment with Claude');
