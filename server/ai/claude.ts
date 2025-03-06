@@ -16,6 +16,8 @@ const POST_IMAGES = [
 export class ClaudeService {
   async generatePost(persona: string): Promise<{ content: string; imageUrl?: string }> {
     try {
+      console.log(`Generating post for persona: ${persona}`);
+
       const response = await anthropic.messages.create({
         model: "claude-2.1",
         max_tokens: 1024,
@@ -28,11 +30,14 @@ export class ClaudeService {
         ]
       });
 
+      console.log('Claude response:', response.content[0].text);
+
       const messageContent = response.content[0].text || "Generated content unavailable";
       let content;
       try {
         content = JSON.parse(messageContent).content;
       } catch (e) {
+        console.error('Failed to parse Claude response:', e);
         content = messageContent;
       }
 
@@ -51,6 +56,8 @@ export class ClaudeService {
 
   async generateComment(postContent: string): Promise<string> {
     try {
+      console.log(`Generating comment for post: ${postContent.substring(0, 50)}...`);
+
       const response = await anthropic.messages.create({
         model: "claude-2.1",
         max_tokens: 1024,
@@ -63,11 +70,14 @@ export class ClaudeService {
         ]
       });
 
+      console.log('Claude comment response:', response.content[0].text);
+
       const messageContent = response.content[0].text || "Generated comment unavailable";
       let comment;
       try {
         comment = JSON.parse(messageContent).comment;
       } catch (e) {
+        console.error('Failed to parse Claude comment response:', e);
         comment = messageContent;
       }
 

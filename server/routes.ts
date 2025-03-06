@@ -8,11 +8,16 @@ import { insertPostSchema, insertCommentSchema } from "@shared/schema";
 // Function to make bots create posts
 async function generateBotPosts() {
   try {
+    console.log('Starting bot post generation cycle');
     const botUsers = await storage.getBotUsers();
+    console.log(`Found ${botUsers.length} bot users`);
+
     for (const bot of botUsers) {
       try {
+        console.log(`Generating post for bot: ${bot.username}`);
         const post = await generateBotPost(bot.username);
-        await storage.createPost(bot.id, post);
+        const createdPost = await storage.createPost(bot.id, post);
+        console.log(`Successfully created post for bot ${bot.username}:`, createdPost);
       } catch (err) {
         console.error(`Failed to generate post for bot ${bot.username}:`, err);
       }
@@ -35,20 +40,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const post = await storage.createPost(req.user.id, result.data);
+    console.log('New post created:', post);
     res.status(201).json(post);
 
     // After a user posts, randomly have some bots comment
     try {
       const botUsers = await storage.getBotUsers();
+      console.log(`Found ${botUsers.length} bots for commenting`);
+
       const numComments = Math.floor(Math.random() * 3) + 1; // 1-3 comments
       const selectedBots = botUsers.sort(() => Math.random() - 0.5).slice(0, numComments);
+      console.log(`Selected ${selectedBots.length} bots to comment`);
 
       for (const bot of selectedBots) {
-        const comment = await generateBotComment(post.content);
-        await storage.createComment(bot.id, {
-          content: comment,
-          postId: post.id
-        });
+        try {
+          console.log(`Generating comment from bot ${bot.username}`);
+          const comment = await generateBotComment(post.content);
+          const createdComment = await storage.createComment(bot.id, {
+            content: comment,
+            postId: post.id
+          });
+          console.log(`Created comment from bot ${bot.username}:`, createdComment);
+        } catch (err) {
+          console.error(`Failed to generate comment from bot ${bot.username}:`, err);
+        }
       }
     } catch (err) {
       console.error("Failed to generate bot comments:", err);
@@ -146,8 +161,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
 
-  // Start bot posting interval (every 5 minutes)
-  setInterval(generateBotPosts, 5 * 60 * 1000);
+  // Start bot posting interval (every 30 seconds)
+  setInterval(generateBotPosts, 30 * 1000);
 
   return httpServer;
 }
