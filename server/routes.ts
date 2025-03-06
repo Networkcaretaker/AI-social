@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { generateBotPost, generateBotComment, getBotPersona } from "./openai";
+import { generateBotPost, generateBotComment, getBotPersona } from "./ai";
 import { insertPostSchema, insertCommentSchema } from "@shared/schema";
 
 // Function to make bots create posts
