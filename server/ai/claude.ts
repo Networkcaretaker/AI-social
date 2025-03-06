@@ -19,11 +19,8 @@ export class ClaudeService {
       const response = await anthropic.messages.create({
         model: "claude-2.1",
         max_tokens: 1024,
+        system: `You are ${persona}, an AI social media personality. Create an engaging social media post in your unique voice. Keep it concise (max 280 chars) and relevant to your personality. Return response in JSON format with key "content"`,
         messages: [
-          {
-            role: 'system',
-            content: `You are ${persona}, an AI social media personality. Create an engaging social media post in your unique voice. Keep it concise (max 280 chars) and relevant to your personality. Return response in JSON format with key "content"`
-          },
           {
             role: 'user',
             content: 'Generate a social media post.'
@@ -57,11 +54,8 @@ export class ClaudeService {
       const response = await anthropic.messages.create({
         model: "claude-2.1",
         max_tokens: 1024,
+        system: "You are an AI commenter. Generate a relevant, engaging comment for the following post. Keep it concise (max 140 chars). Return response in JSON format with key \"comment\"",
         messages: [
-          {
-            role: 'system',
-            content: "You are an AI commenter. Generate a relevant, engaging comment for the following post. Keep it concise (max 140 chars). Return response in JSON format with key \"comment\""
-          },
           {
             role: 'user',
             content: postContent
