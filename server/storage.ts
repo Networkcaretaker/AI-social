@@ -1,8 +1,11 @@
-import { comments, likes, posts, type User, type InsertUser, type Post, type InsertPost, type Comment, type InsertComment } from "@shared/schema";
+import { comments, likes, posts, users, type User, type InsertUser, type Post, type InsertPost, type Comment, type InsertComment } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc } from "drizzle-orm";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -19,108 +22,111 @@ export interface IStorage {
   sessionStore: session.SessionStore;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private posts: Map<number, Post>;
-  private likes: Map<string, boolean>;
-  private comments: Map<number, Comment>;
-  currentId: { user: number; post: number; comment: number };
+export class DatabaseStorage implements IStorage {
   sessionStore: session.SessionStore;
 
   constructor() {
-    this.users = new Map();
-    this.posts = new Map();
-    this.likes = new Map();
-    this.comments = new Map();
-    this.currentId = { user: 1, post: 1, comment: 1 };
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
   }
 
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentId.user++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   async createPost(authorId: number, insertPost: InsertPost): Promise<Post> {
-    const id = this.currentId.post++;
-    const post: Post = {
-      ...insertPost,
-      id,
-      authorId,
-      createdAt: new Date(),
-    };
-    this.posts.set(id, post);
+    const [post] = await db
+      .insert(posts)
+      .values({ ...insertPost, authorId })
+      .returning();
     return post;
   }
 
   async getPosts(): Promise<(Post & { author: User })[]> {
-    return Array.from(this.posts.values())
-      .map((post) => ({
-        ...post,
-        author: this.users.get(post.authorId)!,
-      }))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        authorId: posts.authorId,
+        imageUrl: posts.imageUrl,
+        createdAt: posts.createdAt,
+        author: users,
+      })
+      .from(posts)
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .orderBy(desc(posts.createdAt));
   }
 
   async getUserPosts(userId: number): Promise<(Post & { author: User })[]> {
-    return Array.from(this.posts.values())
-      .filter((post) => post.authorId === userId)
-      .map((post) => ({
-        ...post,
-        author: this.users.get(post.authorId)!,
-      }))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        authorId: posts.authorId,
+        imageUrl: posts.imageUrl,
+        createdAt: posts.createdAt,
+        author: users,
+      })
+      .from(posts)
+      .innerJoin(users, eq(posts.authorId, users.id))
+      .where(eq(posts.authorId, userId))
+      .orderBy(desc(posts.createdAt));
   }
 
   async likePost(userId: number, postId: number): Promise<void> {
-    this.likes.set(`${userId}-${postId}`, true);
+    await db.insert(likes).values({ userId, postId });
   }
 
   async unlikePost(userId: number, postId: number): Promise<void> {
-    this.likes.delete(`${userId}-${postId}`);
+    await db
+      .delete(likes)
+      .where(and(eq(likes.userId, userId), eq(likes.postId, postId)));
   }
 
   async getLikes(postId: number): Promise<number> {
-    return Array.from(this.likes.entries()).filter(([key]) =>
-      key.endsWith(`-${postId}`),
-    ).length;
+    const [result] = await db
+      .select({ count: db.fn.count() })
+      .from(likes)
+      .where(eq(likes.postId, postId));
+    return Number(result.count);
   }
 
   async createComment(userId: number, insertComment: InsertComment): Promise<Comment> {
-    const id = this.currentId.comment++;
-    const comment: Comment = {
-      ...insertComment,
-      id,
-      userId,
-      createdAt: new Date(),
-    };
-    this.comments.set(id, comment);
+    const [comment] = await db
+      .insert(comments)
+      .values({ ...insertComment, userId })
+      .returning();
     return comment;
   }
 
   async getComments(postId: number): Promise<(Comment & { author: User })[]> {
-    return Array.from(this.comments.values())
-      .filter((comment) => comment.postId === postId)
-      .map((comment) => ({
-        ...comment,
-        author: this.users.get(comment.userId)!,
-      }))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return await db
+      .select({
+        id: comments.id,
+        content: comments.content,
+        userId: comments.userId,
+        postId: comments.postId,
+        createdAt: comments.createdAt,
+        author: users,
+      })
+      .from(comments)
+      .innerJoin(users, eq(comments.userId, users.id))
+      .where(eq(comments.postId, postId))
+      .orderBy(desc(comments.createdAt));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
