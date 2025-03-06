@@ -44,51 +44,73 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      const user = await storage.getUserByUsername(username);
-      if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
-        return done(null, user);
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+          return done(null, false);
+        } else {
+          return done(null, user);
+        }
+      } catch (err) {
+        return done(err);
       }
     }),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: number, done) => {
-    const user = await storage.getUser(id);
-    done(null, user);
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
   });
 
   app.post("/api/register", async (req, res, next) => {
-    const existingUser = await storage.getUserByUsername(req.body.username);
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
-    }
-
-    const user = await storage.createUser({
-      ...req.body,
-      password: await hashPassword(req.body.password),
-      isBot: false,
-    });
-
-    // Create AI bots when first user registers
-    if (user.id === 1) {
-      for (let i = 0; i < 5; i++) {
-        const persona = getBotPersona();
-        await storage.createUser({
-          username: persona.name,
-          password: await hashPassword(randomBytes(16).toString("hex")),
-          isBot: true,
-          avatarUrl: persona.avatar,
-          bio: persona.bio
-        });
+    try {
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).send("Username already exists");
       }
-    }
 
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json(user);
-    });
+      const user = await storage.createUser({
+        ...req.body,
+        password: await hashPassword(req.body.password),
+        isBot: false,
+      });
+
+      // Only try to create bots if they don't exist yet
+      const firstBot = await storage.getUserByUsername("TechGuru");
+      if (!firstBot) {
+        try {
+          // Create AI bots in parallel
+          const botCreationPromises = Array.from({ length: 5 }, async () => {
+            const persona = getBotPersona();
+            const botUsername = `${persona.name}_${randomBytes(4).toString('hex')}`;
+            return storage.createUser({
+              username: botUsername,
+              password: await hashPassword(randomBytes(16).toString("hex")),
+              isBot: true,
+              avatarUrl: persona.avatar,
+              bio: persona.bio
+            });
+          });
+
+          await Promise.all(botCreationPromises);
+        } catch (botError) {
+          console.error("Failed to create bots:", botError);
+          // Continue with user registration even if bot creation fails
+        }
+      }
+
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(201).json(user);
+      });
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
