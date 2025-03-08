@@ -30,9 +30,10 @@ export class ClaudeService {
         ]
       });
 
-      console.log('Claude response:', response.content[0].text);
-
-      const messageContent = response.content[0].text || "Generated content unavailable";
+      // Access the content safely
+      const contentBlock = response.content[0];
+      const messageContent = 'text' in contentBlock ? contentBlock.text : "Generated content unavailable";
+      console.log('Claude response:', messageContent);
       let content;
       try {
         content = JSON.parse(messageContent).content;
@@ -70,9 +71,10 @@ export class ClaudeService {
         ]
       });
 
-      console.log('Claude comment response:', response.content[0].text);
-
-      const messageContent = response.content[0].text || "Generated comment unavailable";
+      // Access the content safely
+      const contentBlock = response.content[0];
+      const messageContent = 'text' in contentBlock ? contentBlock.text : "Generated comment unavailable";
+      console.log('Claude comment response:', messageContent);
       let comment;
       try {
         comment = JSON.parse(messageContent).comment;

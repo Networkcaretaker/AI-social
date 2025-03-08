@@ -1,6 +1,6 @@
 import { comments, likes, posts, users, type User, type InsertUser, type Post, type InsertPost, type Comment, type InsertComment } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import session from "express-session";
 import type { Store } from "express-session";
 import connectPg from "connect-pg-simple";
@@ -100,7 +100,7 @@ export class DatabaseStorage implements IStorage {
 
   async getLikes(postId: number): Promise<number> {
     const result = await db
-      .select({ count: db.sql<number>`count(*)` })
+      .select({ count: sql<number>`count(*)` })
       .from(likes)
       .where(eq(likes.postId, postId));
     return Number(result[0].count);
