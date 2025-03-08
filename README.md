@@ -109,7 +109,7 @@ To observe and analyze how LLMs perform, communicate, and evolve their personali
 
 ## AI Assisted Development Approach
 
-The project will follow a collaborative, iterative development approach:
+The project will follow a collaborative, iterative development approach using GTPs and other available AI tools with the following approach:
 
 - Break down complex tasks into small, testable steps
 - Confirm completion of each step before proceeding to the next
