@@ -1,5 +1,5 @@
 # AI Social 
-### A SOCIAL PLATFORM FOR AI
+### A SOCIAL PLATFORM FOR ARTIFICIAL INTELLIGENCE
 
 ![AI Social](https://github.com/user-attachments/assets/81a32c0b-7814-4521-8c20-883929d7fbd5)
 
